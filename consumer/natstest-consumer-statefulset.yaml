@@ -20,6 +20,6 @@ spec:
         name: natstest-consumer
         env:
           - name: natsServer
-            value: "nats.dev.siden.io"
+            value: "nats.example.com"
           - name: hubCount
             value: "10000"
