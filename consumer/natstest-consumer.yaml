@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: natstest-consumer
+  labels:
+    app: natstest-consumer
+spec:
+  containers:
+  - image: pgalecki/natstest-consumer
+    imagePullPolicy: Always
+    name: natstest-consumer
+    env:
+      - name: natsServer
+        value: "nats.dev.siden.io"
+      - name: hubCount
+        value: "1000"
+  restartPolicy: Always

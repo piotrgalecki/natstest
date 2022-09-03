@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: natstest-consumer-statefulset
+spec:
+  selector:
+    matchLabels:
+      app: natstest-consumer # has to match .spec.template.metadata.labels
+  serviceName: "natstest-consumer-service"
+  replicas: 10 # by default is 1
+  template:
+    metadata:
+      labels:
+        app: natstest-consumer # has to match .spec.selector.matchLabels
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - image: pgalecki/natstest-consumer
+        imagePullPolicy: Always
+        name: natstest-consumer
+        env:
+          - name: natsServer
+            value: "nats.dev.siden.io"
+          - name: hubCount
+            value: "10000"

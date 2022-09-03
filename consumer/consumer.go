@@ -2,34 +2,50 @@ package main
 
 import (
 	"log"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go"
 )
 
-const HubCount = 500
-
-func failOnError(client int, err error, msg string) {
+func logEvent(hub int, err error, msg string) {
 	if err != nil {
-		log.Panicf("Client ", client, "Failed to %s: %s", msg, err)
+		log.Println("[Hub ", hub, "] Failed to ", msg, "error", err)
 	} else {
-		log.Println("Client ", client, "Succeeded to ", msg)
+		log.Println("[Hub ", hub, "] Succeeded to", msg)
 	}
 }
 
-func consumer(hub int) {
+func consumer(hub int, natsServer string) {
+	hubMbox := "hub-" + strconv.Itoa(hub)
+
 	// connect to NATS server
-	nc, err := nats.Connect("nats.dev.siden.io")
-	failOnError(hub, err, "connect to nats server")
+	var nc *nats.Conn
+	var err error
+	for {
+		nc, err = nats.Connect(natsServer, nats.Name(hubMbox))
+		logEvent(hub, err, "connect to nats server")
+		if err != nil {
+			time.Sleep(time.Second)
+			continue
+		}
+		break
+	}
 	defer nc.Close()
 
 	// create async subscription to hub-n topic
-	subject := "hub-" + strconv.Itoa(hub)
-	if _, err := nc.Subscribe(subject, func(m *nats.Msg) {
-		log.Printf("Hub %d received a message", hub)
-	}); err != nil {
-		log.Fatal(err)
+	for {
+		_, err := nc.Subscribe(hubMbox, func(m *nats.Msg) {
+			log.Printf("Hub %d received a message", hub)
+		})
+		logEvent(hub, err, "subscribe to mailbox")
+		if err != nil {
+			time.Sleep(time.Second)
+			continue
+		}
+		break
 	}
 
 	var forever chan struct{}
@@ -37,9 +53,34 @@ func consumer(hub int) {
 }
 
 func main() {
+	// get hubCount from environement
+	hubCount := 100
+	hubCountStr := os.Getenv("hubCount")
+	if hubCountStr != "" {
+		hubCount64, _ := strconv.ParseInt(hubCountStr, 0, 64)
+		hubCount = int(hubCount64)
+	}
 
-	for hub := 1; hub <= HubCount; hub++ {
-		go consumer(hub)
+	// get natsServer from environement
+	natsServer := "localhost"
+	natsServerStr := os.Getenv("natsServer")
+	if natsServerStr != "" {
+		natsServer = natsServerStr
+	}
+
+	// get replica number from environement
+	replica := 0
+	hostname := os.Getenv("HOSTNAME")
+	ss := strings.Split(hostname, "statefulset-")
+	if len(ss) > 1 {
+		replica64, _ := strconv.ParseInt(ss[1], 0, 64)
+		replica = int(replica64)
+	}
+
+	log.Println("NATS consumer test - hubCount", hubCount, "natsServer", natsServer, "replica", replica)
+
+	for hub := replica*hubCount + 1; hub <= replica*hubCount+hubCount; hub++ {
+		go consumer(hub, natsServer)
 		time.Sleep(10 * time.Millisecond)
 	}
 
