@@ -19,7 +19,9 @@ spec:
         imagePullPolicy: Always
         name: natstest-consumer
         env:
-          - name: natsServer
+          - name: NATS_SERVER
             value: "nats.dev.siden.io"
-          - name: hubCount
+          - name: HUB_COUNT
             value: "10000"
+          - name: JETSTREAM
+            value: "true"
