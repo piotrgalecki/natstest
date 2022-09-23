@@ -1,12 +1,15 @@
 # natstest
 Scalability test for NATS message broker
 
-# consumer deployment
+# consumer build
 cd consumer/
+go build
 docker build --tag natstest-consumer .
 docker image ls
 docker tag <image> dockerhubuser/natstest-consumer
 docker push dockerhubuser/natstest-consumer
+
+# consumer deployment
 kc apply -f natstest-consumer-statefulset.yaml
 
 # producer

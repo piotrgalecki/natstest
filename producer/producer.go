@@ -10,6 +10,10 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
+const (
+	STREAM_NAME = "teststream"
+)
+
 func logEvent(hub int, err error, msg string) {
 	if err != nil {
 		log.Println("[Hub ", hub, "] Failed to ", msg, "error", err)
@@ -40,6 +44,13 @@ func main() {
 		useJetstream = true
 	}
 
+	jsCount := 1
+	jsCountStr := os.Getenv("JS_COUNT")
+	if jsCountStr != "" {
+		jsCount64, _ := strconv.ParseInt(jsCountStr, 0, 64)
+		jsCount = int(jsCount64)
+	}
+
 	// get msgRate from environement
 	msgRate := 1000
 	msgRateStr := os.Getenv("MSG_RATE")
@@ -58,7 +69,7 @@ func main() {
 
 	sleepMs := 1000 / (msgRate / msgBurst)
 
-	log.Println("NATS producer test - hubCount", hubCount, "natsServer", natsServer, "js", useJetstream,
+	log.Println("NATS producer test - hubCount", hubCount, "natsServer", natsServer, "js", useJetstream, "jsCount", jsCount,
 		"msgRate", msgRate, "msgBurst", msgBurst, "sleepMs", sleepMs)
 
 	// connect to NATS server
@@ -87,13 +98,16 @@ func main() {
 		// sent msg burst
 		for i := 0; i < msgBurst; i++ {
 			mbox := "testmbox-" + strconv.Itoa(hub)
+			subject := mbox + ".PerfTest"
 			if useJetstream {
-				_, err = js.Publish("hubmsg."+mbox+".JsPerfTest", []byte("All is Well"))
+				jsName := STREAM_NAME + "-" + strconv.Itoa((hub-1)%jsCount+1)
+				subject = jsName + "." + subject
+				_, err = js.Publish(subject, []byte("All is Well"))
 			} else {
-				err = nc.Publish(mbox+".PerfTest", []byte("All is Well"))
+				err = nc.Publish(subject, []byte("All is Well"))
 			}
 			if err != nil {
-				logEvent(hub, err, "publish message")
+				logEvent(hub, err, "publish message to subject "+subject)
 			}
 
 			hub++
